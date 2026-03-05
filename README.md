@@ -1,213 +1,111 @@
-# 회의록 자동 생성 프로그램
+# 🎤 회의록 자동 생성 프로그램 (AI 지원)
 
-음성 파일(m4a)을 자동으로 텍스트로 변환하고, Word 형식의 회의록으로 생성하는 프로그램입니다.
+음성 파일(m4a)을 텍스트로 변환하고, **AI(Gemini/OpenAI)가 핵심 내용을 축약·정리**하여 Word 회의록 문서를 자동 생성하는 GUI 프로그램입니다.
 
 ## 🎯 주요 기능
 
-- **음성 인식 (STT)**: OpenAI Whisper를 사용한 높은 정확도의 한글 음성 인식
-- **자동 포맷팅**: 회의록 표준 포맷에 맞춰 자동으로 문서 생성
-- **사용자 입력**: 회의명, 장소, 일시, 작성자, 참석자 정보를 쉽게 입력
-- **Word 생성**: 전문적인 형식의 .docx 파일로 저장
-
-## 📋 회의록 포맷
-
-```
-┌─────────────────────────────────┐
-│           회의록                │
-├──────────┬──────────┬──────┬────┤
-│ 회의명   │ 음음신소재 박막 Sheet 개발 관련 미팅 │
-│ 장소     │ KH 바텍 서울사무소 │
-│ 일시     │ 2026.02.12 │ 작성자 │ 이동근 │
-├──────────┴──────────┴──────┴────┤
-│ 참석자   │ 음음시스중, 이상선 부사장, ... │
-├─────────────────────────────────┤
-│         미팅 내용                │
-│ [음성 인식된 내용이 자동 입력]    │
-└─────────────────────────────────┘
-```
+| 기능 | 설명 |
+|------|------|
+| 🎤 음성→텍스트 | OpenAI Whisper 기반 한국어 음성 인식 |
+| 🤖 AI 회의록 요약 | Google Gemini / OpenAI GPT로 핵심 축약 |
+| 📄 Word 문서 생성 | KH VATEC 회의록 양식 자동 포맷팅 |
+| 🖥️ GUI | tkinter 기반 (드래그앤드롭, 미리보기, 진행률 표시) |
+| 👁️ 미리보기 | 저장 전 AI 요약 결과 확인 가능 |
 
 ## 🚀 설치 및 실행
 
-### 1단계: 필수 라이브러리 설치
+### 1. 저장소 클론
+
+```bash
+git clone https://github.com/acientsoul/meeting-minutes-generator.git
+cd meeting-minutes-generator
+```
+
+### 2. Python 패키지 설치
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**필요한 라이브러리:**
-- `openai-whisper`: 음성 인식
-- `python-docx`: Word 문서 생성
-- `numpy`: 데이터 처리
+### 3. ffmpeg 설치 (Whisper 필수)
 
-> ⚠️ **주의**: 첫 실행 시 Whisper 모델을 다운로드합니다 (약 140MB). 인터넷 연결이 필요합니다.
-
-### 2단계: 프로그램 실행
-
+**Windows:**
 ```bash
-python main.py
+winget install Gyan.FFmpeg
 ```
 
-### 3단계: 정보 입력 및 파일 선택
+**Mac:**
+```bash
+brew install ffmpeg
+```
 
-프로그램이 다음 정보를 입력하도록 요청합니다:
+**Linux:**
+```bash
+sudo apt install ffmpeg
+```
 
-1. **회의명** (기본값: "정기 회의")
-   ```
-   ✓ 회의명: 2월 정기 회의
-   ```
+> ⚠️ ffmpeg 설치 후 터미널을 재시작하세요.
 
-2. **장소** (기본값: "미정")
-   ```
-   ✓ 장소: KH 바텍 별관 1층 회의실
-   ```
+### 4. GUI 실행
 
-3. **일시** (기본값: 현재 날짜, 형식: YYYY.MM.DD)
-   ```
-   ✓ 일시 (예: 2026.02.12): 2026.02.12
-   ```
+```bash
+python gui_stable.py
+```
 
-4. **작성자** (기본값: "미정")
-   ```
-   ✓ 작성자: 이동근
-   ```
+> 첫 실행 시 Whisper 모델(~140MB)을 자동 다운로드합니다.
 
-5. **참석자** (쉼표로 구분, 기본값: "미정")
-   ```
-   ✓ 참석자 (쉼표로 구분): 이동근, 김철수, 박영희
-   ```
+## 🤖 AI 설정 (선택사항)
 
-6. **m4a 음성 파일 경로**
-   ```
-   🎤 m4a 음성 파일 경로를 입력하세요: C:\recordings\meeting.m4a
-   ```
+AI 요약 기능을 사용하려면 API 키가 필요합니다.
 
-7. **출력 파일명** (기본값: `회의록_YYYYMMDD_HHMMSS.docx`)
-   ```
-   📄 출력 파일명 (기본값: 회의록_20260212_143022.docx): 
-   ```
+### Google Gemini (무료 할당량 제공)
+1. https://aistudio.google.com/apikey 에서 API 키 발급
+2. GUI의 `⚙ AI 설정` 클릭 → Gemini 선택 → API 키 입력
 
-### 4단계: 처리 완료
+### OpenAI GPT
+1. https://platform.openai.com/api-keys 에서 API 키 발급
+2. GUI의 `⚙ AI 설정` 클릭 → OpenAI 선택 → API 키 입력
 
-프로그램이 다음 작업을 수행합니다:
+> AI를 사용하지 않아도 원본 텍스트로 문서 생성 가능합니다.
 
-1. **음성 파일 변환**: m4a → 텍스트 (처리 시간: 음성 길이에 따라 결정)
-2. **Word 문서 생성**: 회의 정보 + 음성 텍스트
+## 📖 사용 방법
 
-완료 후 생성된 Word 파일 경로가 표시됩니다.
+1. **회의 정보 입력** — 회의명, 장소, 일시, 작성자, 참석자, 업체이름
+2. **음성 파일 선택** — m4a 파일을 버튼으로 선택 또는 드래그앤드롭
+3. **변환 시작** — Whisper 음성 변환 → AI 축약 (자동 진행)
+4. **미리보기 확인** — 오른쪽 패널에서 AI 요약 결과 확인
+5. **문서 저장** — `💾 문서 저장` 버튼으로 Word 파일 저장
 
 ## 📁 파일 구조
 
 ```
-demo1/
-├── main.py                    # 메인 프로그램
-├── speech_to_text.py         # 음성 인식 모듈
-├── document_generator.py     # Word 문서 생성 모듈
-├── requirements.txt          # 필요한 라이브러리
-├── README.md                 # 이 파일
-└── 회의록_*.docx            # 생성된 회의록 (실행 후)
+├── gui_stable.py              # GUI 메인 프로그램
+├── ai_meeting_generator.py    # AI 회의록 요약 모듈 (Gemini/OpenAI)
+├── speech_to_text.py          # Whisper 음성→텍스트 변환
+├── document_generator.py      # Word 문서 생성 (KH VATEC 양식)
+├── main.py                    # CLI 버전
+├── requirements.txt           # Python 패키지 목록
+└── README.md
 ```
 
-## 💡 사용 예시
+## ⚙️ Whisper 모델 옵션
 
-### 예시 1: 기본 사용법
-
-```bash
-$ python main.py
-
-회의명: 분기별 전략 회의
-장소: 서울오피스 대회의실
-일시: 2026.02.12
-작성자: 이동근
-참석자: 이동근, 김철수, 박영희, 최은용
-
-m4a 음성 파일 경로: D:\recordings\strategic_meeting.m4a
-출력 파일명: 2월_전략회의.docx
-
-✅ 완료!
-📄 생성된 파일: D:\이동근\5. Coding Source\demo1\2월_전략회의.docx
-```
-
-### 예시 2: 엔터로 기본값 사용
-
-```bash
-$ python main.py
-
-회의명: (Enter)  → "정기 회의" 사용
-장소: (Enter)    → "미정" 사용
-...
-```
-
-## ⚙️ 고급 설정
-
-### Whisper 모델 변경 (main.py)
-
-```python
-# 현재: model_size="base"
-# 변경 가능한 모델:
-# - "tiny"    : 빠름, 정확도 낮음 (~40MB)
-# - "base"    : 균형 잡힘 (~140MB) ← 기본값
-# - "small"   : 더 정확함 (~400MB)
-# - "medium"  : 높은 정확도 (~1.4GB)
-# - "large"   : 최고 정확도 (~2.9GB)
-
-transcript = convert_speech_to_text(audio_file, model_size="small")
-```
+| 모델 | 크기 | 속도 | 정확도 |
+|------|------|------|--------|
+| tiny | ~40MB | 매우 빠름 | 낮음 |
+| **base** | ~140MB | **빠름 (기본값)** | **보통** |
+| small | ~400MB | 보통 | 높음 |
+| medium | ~1.4GB | 느림 | 매우 높음 |
+| large | ~2.9GB | 매우 느림 | 최고 |
 
 ## 🐛 문제 해결
 
-### 1. "No module named 'whisper'" 오류
-
-```bash
-pip install openai-whisper
-```
-
-### 2. 음성 인식이 정확하지 않음
-
-→ Whisper 모델을 더 큰 것으로 변경 (`small`, `medium`, `large`)
-
-### 3. 파일을 찾을 수 없음
-
-→ 경로에 공백이 있으면 따옴표로 감싸기:
-```
-🎤 m4a 음성 파일 경로: "C:\My Documents\meeting.m4a"
-```
-
-### 4. 메모리 부족 (Out of Memory) 오류
-
-→ 더 작은 모델 사용 (`tiny`, `base`)
-
-## 📝 생성된 문서 편집
-
-생성된 Word 파일은 Microsoft Word나 LibreOffice에서 열어 추가 편집이 가능합니다:
-
-- 미팅 내용 추가 편집
-- 폰트/스타일 변경
-- 이미지/표 추가
-- 워터마크, 페이지 번호 추가 등
-
-## 🔧 커스터마이징
-
-### 문서 포맷 변경
-
-[document_generator.py](document_generator.py)의 `MeetingMinutesGenerator` 클래스를 수정:
-
-```python
-def add_title(self, title_text="회의록"):
-    # 제목 스타일 변경
-    title_run.font.size = Pt(20)  # 크기 조정
-```
-
-### 표 레이아웃 변경
-
-```python
-def add_meeting_info_table(self, meeting_info):
-    # 행/열 수 변경
-    table = self.doc.add_table(rows=4, cols=2)  # 변경된 크기
-```
-
-## 📞 지원 및 피드백
-
-문제가 발생하거나 기능 요청이 있으면 알려주세요!
+| 증상 | 해결 방법 |
+|------|-----------|
+| `ffmpeg not found` | ffmpeg 설치 후 터미널 재시작 |
+| 음성 변환이 오래 걸림 | 40MB 파일 기준 CPU에서 10~30분 소요 (정상) |
+| AI 요약 안됨 | `⚙ AI 설정`에서 API 키 확인 |
+| `python` 명령 안됨 (Windows) | `python3` 또는 전체 경로 사용 |
 
 ## 📄 라이선스
 
@@ -215,5 +113,4 @@ def add_meeting_info_table(self, meeting_info):
 
 ---
 
-**Created**: 2026.02.12  
-**Version**: 1.0
+**Version**: 2.0 | **Updated**: 2026.03.05
