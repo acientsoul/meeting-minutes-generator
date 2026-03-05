@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.spec
+ai_config.json
+*.m4a
+*.wav
+*.mp3
+*.docx
+*.exe
+.env

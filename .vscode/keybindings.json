@@ -1,0 +1,12 @@
+[
+    {
+        "key": "ctrl+alt+m",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🎤 회의록 자동 생성 - GUI 버전"
+    },
+    {
+        "key": "ctrl+alt+c",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🎤 회의록 자동 생성 - CLI 버전"
+    }
+]
