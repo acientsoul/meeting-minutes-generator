@@ -4,15 +4,15 @@
         {
             "label": "🎤 회의록 자동 생성 - GUI 버전",
             "type": "shell",
-            "command": "python",
+            "command": "C:\\Users\\LEEDONGGEUN\\AppData\\Local\\Python\\bin\\pythonw.exe",
             "args": ["gui_stable.py"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "presentation": {
-                "reveal": "always",
-                "panel": "new",
-                "focus": true
+                "reveal": "silent",
+                "panel": "shared",
+                "focus": false
             },
             "group": {
                 "kind": "test",

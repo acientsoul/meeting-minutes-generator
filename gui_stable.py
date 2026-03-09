@@ -24,12 +24,13 @@ try:
 except ImportError:
     AI_AVAILABLE = False
 
-# 드래그앤드롭 지원
-try:
-    import tkinterdnd2 as tkdnd
-    DND_AVAILABLE = True
-except ImportError:
-    DND_AVAILABLE = False
+# 드래그앤드롭 지원 — Python 3.14 호환성 문제로 비활성화
+DND_AVAILABLE = False
+# try:
+#     import tkinterdnd2 as tkdnd
+#     DND_AVAILABLE = True
+# except ImportError:
+#     DND_AVAILABLE = False
 
 class PreviewWindow:
     """미리보기 팝업 윈도우"""
@@ -471,47 +472,48 @@ class MeetingApp:
         messagebox.showerror("오류", "m4a 파일만 지원합니다!")
     
     def log(self, msg):
-        """로그 추가"""
-        self.log_area.config(state=tk.NORMAL)
-        ts = datetime.now().strftime("%H:%M:%S")
-        self.log_area.insert(tk.END, f"[{ts}] {msg}\n")
-        self.log_area.see(tk.END)
-        self.log_area.config(state=tk.DISABLED)
-        self.root.update()
+        """로그 추가 (스레드 안전)"""
+        def _do_log():
+            self.log_area.config(state=tk.NORMAL)
+            ts = datetime.now().strftime("%H:%M:%S")
+            self.log_area.insert(tk.END, f"[{ts}] {msg}\n")
+            self.log_area.see(tk.END)
+            self.log_area.config(state=tk.DISABLED)
+        self.root.after(0, _do_log)
     
     def update_progress(self, value, status_text=None):
-        """진행률 업데이트 (바 + % + 상태 텍스트)"""
-        self.progress.delete("all")
-        w = self.progress.winfo_width()
-        if w < 2: w = 650
-        h = 25
-        fw = int((value / 100) * w)
-        
-        # 배경 바
-        self.progress.create_rectangle(0, 0, w, h, fill="#E0E0E0", outline="")
-        
-        # 진행 바 (색상 그라데이션)
-        if value < 50:
-            bar_color = "#FF9800"  # 주황색 (음성변환)
-        elif value < 80:
-            bar_color = "#9C27B0"  # 보라색 (AI 처리)
-        else:
-            bar_color = "#4CAF50"  # 초록색 (완료)
-        
-        if fw > 0:
-            self.progress.create_rectangle(0, 0, fw, h, fill=bar_color, outline="")
-        
-        # 텍스트: % + 상태
-        display = f"{value}%"
-        if status_text:
-            display += f"  {status_text}"
-        self.progress.create_text(w/2, h/2, text=display, fill="white" if fw > w*0.3 else "black",
-                                 font=("Arial", 9, "bold"))
-        
-        if status_text:
-            self.status_label.config(text=f"상태: {status_text}")
-        
-        self.root.update_idletasks()
+        """진행률 업데이트 (스레드 안전)"""
+        def _do_update():
+            self.progress.delete("all")
+            w = self.progress.winfo_width()
+            if w < 2: w = 650
+            h = 25
+            fw = int((value / 100) * w)
+            
+            # 배경 바
+            self.progress.create_rectangle(0, 0, w, h, fill="#E0E0E0", outline="")
+            
+            # 진행 바 (색상 그라데이션)
+            if value < 50:
+                bar_color = "#FF9800"  # 주황색 (음성변환)
+            elif value < 80:
+                bar_color = "#9C27B0"  # 보라색 (AI 처리)
+            else:
+                bar_color = "#4CAF50"  # 초록색 (완료)
+            
+            if fw > 0:
+                self.progress.create_rectangle(0, 0, fw, h, fill=bar_color, outline="")
+            
+            # 텍스트: % + 상태
+            display = f"{value}%"
+            if status_text:
+                display += f"  {status_text}"
+            self.progress.create_text(w/2, h/2, text=display, fill="white" if fw > w*0.3 else "black",
+                                     font=("Arial", 9, "bold"))
+            
+            if status_text:
+                self.status_label.config(text=f"상태: {status_text}")
+        self.root.after(0, _do_update)
     
     def _start_timer(self, step_name):
         """경과 시간 타이머 시작"""
@@ -519,10 +521,10 @@ class MeetingApp:
         self._timer_running = True
         self._timer_start = time.time()
         self._current_step = step_name
-        self._update_timer()
+        self.root.after(0, self._update_timer)
     
     def _update_timer(self):
-        """타이머 업데이트 (매초)"""
+        """타이머 업데이트 (매초) — 메인 스레드에서만 실행됨"""
         if not self._timer_running:
             return
         import time
@@ -537,11 +539,23 @@ class MeetingApp:
         self._timer_running = False
     
     def convert(self):
-        """변환 시작"""
+        """변환 시작 — 메인 스레드에서 위젯 값을 읽고 백그라운드 스레드로 전달"""
         if not self.selected_file:
             messagebox.showerror("오류", "음성 파일을 선택해주세요!")
             return
-        threading.Thread(target=self.convert_thread, daemon=True).start()
+        # 메인 스레드에서 모든 위젯 값 읽기
+        info = {
+            '회의명': self.entries['회의명'].get() or '정기 회의',
+            '장소': self.entries['장소'].get() or '미정',
+            '일시': self.entries['일시'].get(),
+            '작성자': self.entries['작성자'].get() or '미정',
+            '참석자': self.entries['참석자'].get() or '미정',
+            '업체이름': self.entries['업체이름'].get() or '미정',
+        }
+        out_filename = self.entry_out.get()
+        ai_enabled = self.ai_enabled.get()
+        selected_file = self.selected_file
+        threading.Thread(target=self.convert_thread, args=(info, out_filename, ai_enabled, selected_file), daemon=True).start()
     
     def open_ai_settings(self):
         """AI 설정 창 열기"""
@@ -568,21 +582,12 @@ class MeetingApp:
         else:
             self.ai_status_label.config(text=f"⚠ {provider_name} API 키 필요", fg="orange")
     
-    def convert_thread(self):
-        """변환 스레드"""
+    def convert_thread(self, info, out_filename, ai_enabled, selected_file):
+        """변환 스레드 — 위젯 접근 금지, 전달받은 값만 사용"""
         try:
-            info = {
-                '회의명': self.entries['회의명'].get() or '정기 회의',
-                '장소': self.entries['장소'].get() or '미정',
-                '일시': self.entries['일시'].get(),
-                '작성자': self.entries['작성자'].get() or '미정',
-                '참석자': self.entries['참석자'].get() or '미정',
-                '업체이름': self.entries['업체이름'].get() or '미정',
-            }
-            
-            out = self.entry_out.get()
+            out = out_filename
             if not out.endswith('.docx'): out += '.docx'
-            company = self.entries['업체이름'].get() or '미정'
+            company = info.get('업체이름', '미정')
             company = company.replace(' ', '_')
             auto_filename = f'회의록_{datetime.now().strftime("%Y%m%d")}_{company}.docx'
             out = auto_filename
@@ -610,7 +615,7 @@ class MeetingApp:
                 self.update_progress(percent, "🎤 " + message)
                 self.log(message)
             
-            self.transcript = converter.convert_m4a_to_text(self.selected_file, progress_callback=on_stt_progress)
+            self.transcript = converter.convert_m4a_to_text(selected_file, progress_callback=on_stt_progress)
             self._stop_timer()
             self.update_progress(50, "✅ 음성 변환 완료!")
             self.log("✅ 음성 변환 완료")
@@ -619,7 +624,7 @@ class MeetingApp:
             # === 2단계: AI 회의록 구성 ===
             # ============================================
             ai_content = None
-            if self.ai_enabled.get() and AI_AVAILABLE:
+            if ai_enabled and AI_AVAILABLE:
                 try:
                     config = load_config()
                     provider = config.get("ai_provider", "gemini")
@@ -656,9 +661,9 @@ class MeetingApp:
                     self.log("⚠ AI 오류: " + str(ai_err))
                     self.log("⚠ 원본 텍스트로 문서를 생성합니다.")
                     ai_content = None
-            elif self.ai_enabled.get() and not AI_AVAILABLE:
+            elif ai_enabled and not AI_AVAILABLE:
                 self.log("⚠ AI 모듈 미설치 - 원본 텍스트로 진행")
-            elif not self.ai_enabled.get():
+            elif not ai_enabled:
                 self.log("ℹ AI 비활성화 - 원본 텍스트로 진행")
             
             # ============================================
@@ -695,16 +700,18 @@ class MeetingApp:
                 preview += self.transcript
                 preview += "\n\n⚠ AI 요약이 적용되지 않았습니다. 원본 텍스트가 문서에 반영됩니다."
             
-            self.preview_area.config(state=tk.NORMAL)
-            self.preview_area.delete(1.0, tk.END)
-            self.preview_area.insert(tk.END, preview)
-            self.preview_area.config(state=tk.DISABLED)
+            def _update_preview():
+                self.preview_area.config(state=tk.NORMAL)
+                self.preview_area.delete(1.0, tk.END)
+                self.preview_area.insert(tk.END, preview)
+                self.preview_area.config(state=tk.DISABLED)
+            self.root.after(0, _update_preview)
             
             # ============================================
             # === 완료 ===
             # ============================================
             self.update_progress(100, "✅ 변환 완료! 미리보기 확인 후 저장해주세요")
-            self.elapsed_label.config(text="")
+            self.root.after(0, lambda: self.elapsed_label.config(text=""))
             self.log("━" * 40)
             if ai_content:
                 self.log("✅ AI 회의록 구성 완료! 오른쪽 미리보기를 확인하세요.")
@@ -713,18 +720,22 @@ class MeetingApp:
                 self.log("✅ 변환 완료! (원본 텍스트 기준)")
             self.log("💾 '문서 저장' 버튼을 눌러 Word 파일로 저장하세요.")
             
-            self.btn_save.config(state=tk.NORMAL)
-            self.btn_preview.config(state=tk.NORMAL)
-            
-            messagebox.showinfo("변환 완료", "미리보기를 확인한 후 '💾 문서 저장' 버튼을 눌러주세요.")
+            def _on_complete():
+                self.btn_save.config(state=tk.NORMAL)
+                self.btn_preview.config(state=tk.NORMAL)
+                messagebox.showinfo("변환 완료", "미리보기를 확인한 후 '💾 문서 저장' 버튼을 눌러주세요.")
+            self.root.after(0, _on_complete)
             
         except Exception as e:
             self._stop_timer()
             self.update_progress(0, "❌ 오류 발생")
-            self.status_label.config(text="상태: ❌ 오류", fg="red")
-            self.elapsed_label.config(text="")
-            self.log("❌ 오류: " + str(e))
-            messagebox.showerror("오류", "오류 발생:\n" + str(e))
+            err_msg = str(e)
+            def _on_error():
+                self.status_label.config(text="상태: ❌ 오류", fg="red")
+                self.elapsed_label.config(text="")
+                messagebox.showerror("오류", "오류 발생:\n" + err_msg)
+            self.log("❌ 오류: " + err_msg)
+            self.root.after(0, _on_error)
     
     def save_document(self):
         """회의록 Word 문서 저장"""
@@ -836,9 +847,6 @@ class MeetingApp:
         self.log("프로그램 초기화됨")
 
 if __name__ == '__main__':
-    if DND_AVAILABLE:
-        root = tkdnd.Tk()
-    else:
-        root = tk.Tk()
+    root = tk.Tk()
     app = MeetingApp(root)
     root.mainloop()
